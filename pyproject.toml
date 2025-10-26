@@ -1,0 +1,20 @@
+[project]
+name = "crowdfunding-comps"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "bertopic>=0.17.3",
+    "bs4>=0.0.2",
+    "duckdb>=1.4.1",
+    "faiss-cpu>=1.12.0",
+    "numpy>=2.3.4",
+    "pandas>=2.3.3",
+    "polars>=1.34.0",
+    "psycopg2>=2.9.11",
+    "pyarrow>=22.0.0",
+    "python-dotenv>=1.1.1",
+    "requests>=2.32.5",
+    "sentence-transformers>=5.1.2",
+]
