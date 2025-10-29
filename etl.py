@@ -1,6 +1,8 @@
 from typing import Literal
 import polars as pl
 from bridge import Connections
+from embeddings import Embeddings
+from config import Configs
 import datetime
 import os
 import duckdb
@@ -19,14 +21,14 @@ class KS_Records():
 
     # Schema changes to perform before loading data
     schema_changes = {'usd_pledged': pl.Float32,                  
-                    'goal': pl.Int32,
+                    'goal': pl.Float32,
                     "pledged": pl.Float32,
                     "static_usd_rate": pl.Float32,
                     "usd_exchange_rate": pl.Float32,
                     "fx_rate": pl.Float32,
                     "percent_funded": pl.Float32,
                     "backers_count": pl.Int32,
-                    "converted_pledged_amount": pl.Int32,                
+                    "converted_pledged_amount": pl.Float32,                
                     }
     
     column_order = ['run_id',
@@ -99,7 +101,7 @@ class KS_Records():
     def scan_file(self):
         """Scans the Kickstarter archive JSON file.
         """
-        self.lf = pl.scan_ndjson(self.file,batch_size=self.batch_size,low_memory=True,include_file_paths='file')
+        self.lf = pl.scan_ndjson(self.file,batch_size=self.batch_size,low_memory=True,include_file_paths='file',schema=Configs.json_schema)
     
     def transform_file(self):
         """Performs the necessary transformations and cleaning to the JSON file.
@@ -132,6 +134,7 @@ class KS_Records():
             pl.col("video").struct.field("status").alias("video_status"),
             *self.date_change_expressions
             ).drop(self.cols_to_drop).sort('percent_funded').unique(subset=['id'],keep='last').select(self.column_order)
+        print("File transformations entered.")
 
 
     def create_date_changes(self)-> list:
@@ -213,6 +216,13 @@ class KS_Records():
 
             con.sql(f"CREATE TABLE {table_name} AS SELECT * FROM arrow_df;")
 
+    def create_embeddings(self):
+        """Create an embedding of the combination of a embedding_columns.
+        """
+        print(f"Embedding columns: {Configs.embedding_columns}")
+        embed = Embeddings(self.lf,Configs.embedding_columns)
+        self.lf = embed.transform()
+
     def etl(self,output_db: Literal['supabase','duckdb']='duckdb'):
         """Runs the ETL process.
 
@@ -223,6 +233,7 @@ class KS_Records():
             self.scan_file()
             self.create_date_changes()
             self.transform_file()
+            self.create_embeddings()
             if self.output_db_table:
                 self.load(self.output_db_table,output_db)
         except Exception as e:
