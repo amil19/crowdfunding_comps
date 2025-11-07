@@ -1,4 +1,4 @@
-# from embeddings import Embeddings
+from sentence_transformers import SentenceTransformer
 from embeddings import Embeddings
 import polars as pl
 import duckdb
@@ -8,7 +8,6 @@ import faiss
 import numpy as np
 
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 
 class SimilaritySearch():
@@ -42,9 +41,9 @@ class SimilaritySearch():
     def load_data(self):
         """Loads Kickstarter campaigns from database.
         """
-        query = f"Select {','.join(ref.ks_table_cols)} from {ref.ks_table} where category_parent_name = '{self.category}' limit 1000"
+        query = f"Select distinct {','.join(ref.ks_table_cols)} from {ref.ks_table} where category_parent_name = '{self.category}' and embeddings IS NOT NULL order by run_id desc"
         with duckdb.connect(ref.ks_db, read_only=True) as conn:
-            self.lf = conn.sql(query).pl().lazy()
+            self.lf = conn.sql(query).pl().unique(subset=['id'],keep='first')
 
     def prep_data(self):
         """Prepares data for clustering.
@@ -57,22 +56,13 @@ class SimilaritySearch():
     def create_embeddings(self):
         """Creates embeddings for campaign name and blurb. 
         """
-        self.embed = Embeddings(self.lf,'id',ref.Model_Cols.embedding_columns)
-        self.model_df = self.embed.transform()
-
-    def create_data_for_clustering(self):
-        """Creates the data used for clustering.
-        """
-        self.data_for_clustering = self.preprocessor.fit_transform(self.model_df)
-        X_combined = np.hstack((self.data_for_clustering, self.embed.embeddings))
-
-        # Create a N x (C + D) NumPy array, ready for Faiss
-        self.data_for_clustering = X_combined.astype(np.float32)
+        self.hardcoded_embeddings = self.lf.select("embeddings").to_series().to_numpy()
+        self.hardcoded_embeddings = np.stack(self.hardcoded_embeddings,dtype=np.float32)
 
     def convert_to_pandas(self):
         """Convert data to pandas for preprocessing.
         """
-        self.model_df = self.model_df.drop(['name','blurb','cols_to_embed','embeddings']).to_pandas()
+        self.model_df = self.lf.drop(['name','blurb','embeddings']).to_pandas()
         self.model_df = self.model_df.set_index('id')
     
     def create_preprocessor(self):
@@ -81,8 +71,20 @@ class SimilaritySearch():
         self.preprocessor = ColumnTransformer(
             transformers=[
                 ("numerical", StandardScaler(), ref.Model_Cols.numeric_columns),
-                ("categorical",OneHotEncoder(),ref.Model_Cols.categorical)],remainder='passthrough'
+                ("categorical",OneHotEncoder(handle_unknown='ignore'),ref.Model_Cols.categorical)],
+                remainder='passthrough',
+                sparse_threshold=0
         )
+
+    def create_data_for_clustering(self):
+        """Creates the data used for clustering.
+        """
+        self.data_for_clustering = self.preprocessor.fit_transform(self.model_df)
+        
+        X_combined = np.hstack((self.data_for_clustering, self.hardcoded_embeddings))
+
+        # Create a N x (C + D) NumPy array, ready for Faiss
+        self.data_for_clustering = X_combined.astype(np.float32)
 
     def setup_faiss(self):
         """Prepares the FAISS process. 
@@ -107,20 +109,27 @@ class SimilaritySearch():
         """
         self.faiss_index.add(self.data_for_clustering)
 
+    def load_encoding_model(self):
+        """Loads SBERT model used to create embeddings.
+        """
+        MODEL_LOAD_PATH = './models/kickstarter-sbert-model'
+
+        self.original_model = SentenceTransformer(MODEL_LOAD_PATH)
+
     def create_query_vector(self):
         """Creates the vector for querying.
         """
         self.embed_inputs = Embeddings(self.query_df,'id',ref.Model_Cols.embedding_columns)
         self.embed_inputs.create_documents()
         self.query_df_updated = self.embed_inputs.transform()
-        self.query_embeddings = self.embed.model.encode(self.embed_inputs.documents, convert_to_numpy=True).astype(np.float32)
+        self.load_encoding_model()
+        self.query_embeddings = self.original_model.encode(self.embed_inputs.documents, convert_to_numpy=True).astype(np.float32)
         self.query_df_updated = self.query_df_updated.drop(['name','blurb','cols_to_embed','embeddings']).to_pandas()
         self.query_df_updated = self.query_df_updated.set_index('id')
 
         self.query_df_transformed = self.preprocessor.transform(self.query_df_updated)
         self.query_vector = np.hstack((self.query_df_transformed, self.query_embeddings))
 
-        # X_combined is now a clean N x (C + D) NumPy array, ready for Faiss
         self.query_vector = self.query_vector.astype(np.float32)
 
     def find_nearest_neighbors(self,k: int=None):
@@ -161,7 +170,24 @@ class SimilaritySearch():
         self.ids = [item for sublist in all_ids for item in sublist]
         self.distances = [item for sublist in all_distances for item in sublist]
 
-        results_df = pl.DataFrame({'id': self.ids,'distance': self.distances}).cast({'id': pl.Int64}).lazy()
+        results_df = pl.DataFrame({'id': self.ids,'distance': self.distances}).cast({'id': pl.Int64})
         combined_results_df = results_df.join(self.lf,on='id',how='inner')
-        self.final_results = combined_results_df.collect().sort('distance')
-        st.write(self.final_results)
+        self.final_results = combined_results_df.sort('distance').drop('embeddings')
+        self.final_results = self.calc_similarity_score(self.final_results)
+
+    @staticmethod
+    def calc_similarity_score(df: pl.DataFrame | pl.LazyFrame,distance_col: str='distance',score_col_name: str='Similarity Score'):
+        """Calculates similarity score by performing an inverse reciprocal transormation on Euclidean distance. 
+
+        Args:
+            df (pl.DataFrame | pl.LazyFrame): DataFrame to add column to.
+            distance_col (str): Name of column containing distance. Defaults to 'distance'
+            score_col_name (str): Name of new similairty score column. Defaults to 'Similarity Score'
+        
+        Returns:
+            pl.DataFrame | pl.LazyFrame: Updated DataFrame with similarity score column.
+        """
+
+        df = df.with_columns((1/(1+pl.col(distance_col))).alias(score_col_name))
+
+        return df

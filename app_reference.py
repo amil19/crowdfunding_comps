@@ -1,8 +1,8 @@
 import streamlit as st
 
 ks_db = 'crowdfunding_comps.db'
-ks_table = 'kickstarter_records'
-ks_table_cols = ['id','name','blurb','goal','category_parent_name','category_name']
+ks_table = 'kickstarter_records_w_embeds'
+ks_table_cols = ['id','name','blurb','goal','category_parent_name','category_name','embeddings']
 
 class Model_Cols:
   embedding_columns = ['blurb','name']
