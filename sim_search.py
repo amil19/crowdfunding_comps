@@ -41,7 +41,13 @@ class SimilaritySearch():
     def load_data(self):
         """Loads Kickstarter campaigns from database.
         """
-        query = f"Select distinct {','.join(ref.ks_table_cols)} from {ref.ks_table} where category_parent_name = '{self.category}' and embeddings IS NOT NULL order by run_id desc"
+        query = f"""
+        Select distinct {','.join(ref.ks_table_cols+ref.ks_kpi_cols)} 
+        from {ref.ks_table} 
+        where category_parent_name = '{self.category}' 
+        and embeddings IS NOT NULL
+        and launched_at > '1970-01-01' 
+        order by run_id desc"""
         with duckdb.connect(ref.ks_db, read_only=True) as conn:
             self.lf = conn.sql(query).pl().unique(subset=['id'],keep='first')
 
@@ -62,7 +68,7 @@ class SimilaritySearch():
     def convert_to_pandas(self):
         """Convert data to pandas for preprocessing.
         """
-        self.model_df = self.lf.drop(['name','blurb','embeddings']).to_pandas()
+        self.model_df = self.lf.drop(['name','blurb','embeddings']+ref.ks_kpi_cols).to_pandas()
         self.model_df = self.model_df.set_index('id')
     
     def create_preprocessor(self):
@@ -188,6 +194,6 @@ class SimilaritySearch():
             pl.DataFrame | pl.LazyFrame: Updated DataFrame with similarity score column.
         """
 
-        df = df.with_columns((1/(1+pl.col(distance_col))).alias(score_col_name))
+        df = df.with_columns((1/(1+pl.col(distance_col))*100).alias(score_col_name))
 
         return df

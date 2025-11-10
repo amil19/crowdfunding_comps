@@ -1,5 +1,6 @@
 import streamlit as st
 import app_reference as ref
+from results import Results
 from sim_search import SimilaritySearch
 import datetime
 
@@ -48,4 +49,20 @@ if run:
     sim_search.retrieve_results()
     end = datetime.datetime.now()
     st.write(f"Total Runtime: {end-start}")
-    st.write(sim_search.final_results)
+
+    results = Results(sim_search.final_results)
+    kpis_1,kpis_2,kpis_3,kpis_4 = st.columns(4)
+    with kpis_1:
+        results.display_kpi('avg_backers')
+    with kpis_2:
+        results.display_kpi('avg_pledged')
+    with kpis_3:
+        results.display_kpi('avg_pledge_amt')
+    with kpis_4:
+        results.display_kpi('success_rate')
+    st.divider()
+    st.dataframe(
+        results.df,
+        column_config = results.column_configs,
+        hide_index = True
+        )

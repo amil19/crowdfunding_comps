@@ -1,8 +1,12 @@
 import streamlit as st
+import polars as pl
+from typing import Literal
 
 ks_db = 'crowdfunding_comps.db'
 ks_table = 'kickstarter_records_w_embeds'
 ks_table_cols = ['id','name','blurb','goal','category_parent_name','category_name','embeddings']
+ks_kpi_cols = ['prelaunch_activated', 'launched_at','deadline','backers_count','creator_name'
+               ,'usd_pledged','percent_funded', 'url_project']
 
 class Model_Cols:
   embedding_columns = ['blurb','name']
