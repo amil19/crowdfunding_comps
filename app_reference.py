@@ -8,18 +8,36 @@ ks_table_cols = ['id','name','blurb','goal','category_parent_name','category_nam
 ks_kpi_cols = ['prelaunch_activated', 'launched_at','deadline','backers_count','creator_name'
                ,'usd_pledged','percent_funded', 'url_project']
 
+css = """<style>
+    /* Import fonts: Poppins (headers) and Roboto (body) */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&family=Roboto:wght@400;700&display=swap');
+
+    /* Set all headers (H1-H6) to Poppins */
+    h1, h2, h3, h4, h5, h6, .stHeading, .stHeading * {
+        font-family: 'Poppins', sans-serif !important;
+    }
+
+    /* Set all normal text to Roboto */
+    body, .stApp, .main, .block-container, p, div:not(.stCodeBlock), .stText {
+        font-family: 'Roboto', sans-serif !important;
+    }
+
+    /* Exclude source code elements */
+    .stCodeBlock, pre, code {
+        font-family: monospace !important; 
+    }
+    
+    </style>
+    """
+
+
+
 class Model_Cols:
   embedding_columns = ['blurb','name']
-
-  boolean_columns = ['prelaunch_activated']
 
   categorical = ['category_name','category_parent_name']
 
   numeric_columns = ['goal']
-
-  date_columns = ['launched_at']
-
-  ordinal_columns = ['month','quarter']
 
 categories = {'Technology': ['Web',
   'Apps',

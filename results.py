@@ -58,23 +58,25 @@ class Results():
     self.calc_kpis()
 
   def create_display_df(self):
-    self.df = self.df.select(self.display_cols)
+    self.df = self.df.select(self.display_cols)\
+        .with_columns(pl.when(pl.col("usd_pledged")>=pl.col("goal")).then(True).otherwise(False).alias("Successfully Funded"))
 
   def calc_kpis(self):
     records = len(self.df)
     self.kpis = {}
     self.kpis['avg_backers'] = self.df.select(pl.mean("backers_count")).item()
     self.kpis['avg_pledged'] = self.df.select(pl.mean("usd_pledged")).item()
-
     self.kpis['avg_pledge_amt'] = self.df.with_columns(
       (pl.col("usd_pledged")/pl.col("backers_count")).alias("avg_pledge")
-    ).select(pl.mean("avg_pledge")).item()
-    self.kpis['success_rate'] = self.df.filter(pl.col("usd_pledged")>=pl.col("goal")).select(pl.len() / records).item()
+    ).drop_nans(subset='avg_pledge').select(pl.mean("avg_pledge")).item()
+    self.kpis['success_rate'] = self.df.select(pl.sum("Successfully Funded") / records).item()
+    self.kpis['avg_similiarity'] = self.df.select(pl.mean("Similarity Score")).item()
 
   def display_kpi(self,metric: Literal['avg_backers',
                                        'avg_pledged',
                                        'avg_pledge_amt',
-                                       'success_rate']) -> st.metric:
+                                       'success_rate',
+                                       'avg_similiarity']) -> st.metric:
     
     value = self.kpis[metric]
 
@@ -82,8 +84,10 @@ class Results():
       display_val = f"${int(round(value,0)):,}"
     elif 'avg_backers' in metric:
       display_val = f"{int(round(value,0)):,}"
-    else:
+    elif 'success' in metric:
       display_val = f"{value*100:.2f}%"
+    else:
+      display_val = f"{value:.2f}"
 
     metric = metric.replace("_", " ").title()
 

@@ -4,6 +4,10 @@ from results import Results
 from sim_search import SimilaritySearch
 import datetime
 
+st.set_page_config(layout="wide")
+
+st.markdown(ref.css,unsafe_allow_html=True)
+
 st.header("Kickstarter Comparison Engine")
 
 st.write("""Enter a campaign title, description, category, goal, duration, and region and get the top n similar campaigns, metrics, and benchmarks
@@ -23,7 +27,7 @@ with input_col2:
         subcats = ref.categories[category_parent]
         subcats.sort()
         category_name = st.selectbox("Subcategory", options=subcats,key='category_name')
-        number_of_comps = round(st.number_input("Number of similar campaigns you want to see",min_value=2,max_value=50,key='number_of_comps'),0)
+        number_of_comps = round(st.number_input("Number of similar campaigns you want to see",min_value=2,max_value=150,key='number_of_comps'),0)
 run = False
 try:
     if number_of_comps:
@@ -34,21 +38,27 @@ except NameError:
 if run:
     sim_search = SimilaritySearch(campaign_title,blurb,goal,category_parent,category_name,number_of_comps)
     start = datetime.datetime.now()
-    st.write(f"Starting engine at: {start}")
-    st.write("Loading Kickstarter Data")
+    progress_bar = st.progress(0, text=f"Starting engine at: {start}")
+    status_text = st.empty()
+
+    status_text.write("Loading Kickstarter Data")
     sim_search.load_data()
-    st.write("Preparing Data for Clustering")
+    progress_bar.progress(50, text="Loading Data (Step: 1/3)")
+    status_text.write("Preparing Data for Clustering")
     sim_search.prep_data()
     sim_search.setup_faiss()
-    st.write("Cluster Model Ready")
+    progress_bar.progress(90, text="Preparing Data for Clustering (Step: 2/3)")
     cluster_start = datetime.datetime.now()
-    st.write(f"Similarity search started at: {cluster_start}")
+    progress_bar.progress(90, text="Searching for Similar Campaigns (3/3)")
     sim_search.find_nearest_neighbors()
     cluster_end = datetime.datetime.now()
-    st.write(f"Similarity search completed in: {cluster_end-cluster_start}")
+
+    progress_bar.progress(100, text="Completed!")
     sim_search.retrieve_results()
     end = datetime.datetime.now()
-    st.write(f"Total Runtime: {end-start}")
+
+    status_text.write(f"Total Runtime: {end-start}")
+    st.success(f"Similarity search completed in: {cluster_end-cluster_start}")
 
     results = Results(sim_search.final_results)
     kpis_1,kpis_2,kpis_3,kpis_4 = st.columns(4)
