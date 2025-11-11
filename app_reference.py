@@ -26,6 +26,15 @@ css = """<style>
     .stCodeBlock, pre, code {
         font-family: monospace !important; 
     }
+
+    .dataframe th, .dataframe td {
+    white-space: pre-wrap;
+    vertical-align: top;
+    font-size: 14px;
+    }
+    .dataframe .blank, .dataframe .nan {
+        color: #ccc;
+    }
     
     </style>
     """

@@ -61,7 +61,10 @@ if run:
     st.success(f"Similarity search completed in: {cluster_end-cluster_start}")
 
     results = Results(sim_search.final_results)
-    kpis_1,kpis_2,kpis_3,kpis_4 = st.columns(4)
+
+    st.subheader("Key Performance Indicators (KPIs) for Similar Campaigns")
+
+    kpis_1,kpis_2,kpis_3,kpis_4,kpis_5 = st.columns(5)
     with kpis_1:
         results.display_kpi('avg_backers')
     with kpis_2:
@@ -69,10 +72,26 @@ if run:
     with kpis_3:
         results.display_kpi('avg_pledge_amt')
     with kpis_4:
+        results.display_kpi('avg_duration')
+    with kpis_5:    
         results.display_kpi('success_rate')
-    st.divider()
+
+
+
+    tab_1,tab_2,tab_3 = st.tabs(["Goal Benchmarking","Similarity vs Performance","Launch Day Analysis"])
+    #tab_1,tab_2,tab_3 = st.columns(3)
+    with tab_1:
+        #st.subheader("Goal Benchmarking")
+        results.plot_box()
+    with tab_2:
+        #st.subheader("Similarity vs Performance")
+        results.plot_similarity()
+    with tab_3:
+        #st.subheader("Launch Day Analysis")
+        results.plot_day_of_week()
+    st.subheader("Detailed Comparison Table")
     st.dataframe(
-        results.df,
-        column_config = results.column_configs,
-        hide_index = True
-        )
+    results.df,
+    column_config = results.column_configs,
+    hide_index = True,
+    row_height=100)
