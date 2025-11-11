@@ -2,7 +2,6 @@ import streamlit as st
 import polars as pl
 from typing import Literal
 import altair as alt
-from great_tables import GT
 
 class Results():
   display_cols = ['Similarity Score','name','blurb','goal','backers_count',

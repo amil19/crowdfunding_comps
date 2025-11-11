@@ -48,7 +48,8 @@ class SimilaritySearch():
         and embeddings IS NOT NULL
         and launched_at > '1970-01-01' 
         order by run_id desc"""
-        with duckdb.connect(ref.ks_db, read_only=True) as conn:
+        with duckdb.connect(f"{st.secrets['DUCKDB']}?motherduck_token={st.secrets['DUCKDB_TOKEN']}") as conn:
+        #with duckdb.connect(ref.ks_db, read_only=True) as conn:
             self.lf = conn.sql(query).pl().unique(subset=['id'],keep='first')
 
     def prep_data(self):
