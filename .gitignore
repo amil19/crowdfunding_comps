@@ -3,6 +3,5 @@
 *.parquet
 *.ipynb
 *.db
-*.txt
 .env
 md
