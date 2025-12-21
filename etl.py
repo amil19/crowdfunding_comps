@@ -99,7 +99,7 @@ class KS_Records():
     def scan_file(self):
         """Scans the Kickstarter archive JSON file.
         """
-        self.lf = pl.scan_ndjson(self.file,batch_size=self.batch_size,low_memory=True,include_file_paths='file')
+        self.lf = pl.scan_ndjson(self.file,batch_size=self.batch_size,low_memory=True,include_file_paths='file',infer_schema_length=None)
     
     def transform_file(self):
         """Performs the necessary transformations and cleaning to the JSON file.
