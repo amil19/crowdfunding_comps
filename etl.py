@@ -4,6 +4,7 @@ from bridge import Connections
 import datetime
 import os
 import duckdb
+from rich.console import Console
 
 class KS_Records():
     """Class to perform ETL process on Kickstarter archive files."""
@@ -187,7 +188,27 @@ class KS_Records():
                 print("Creating duckdb database.")
                 self.create_duckdb_table(self.lf,db_table,db_file)
                 print("Database created.")
-                
+    
+    @staticmethod
+    def initialize_connection(destination):
+            console = Console(record=True)
+            db_conn_string = os.environ.get("DUCKDB")
+            database_name = db_conn_string.split(":")[-1]
+            if destination == "md":
+                console.log("Connecting to MotherDuck...")
+                if not os.environ.get("DUCKDB_TOKEN"):
+                    raise ValueError(
+                        "MotherDuck token is required. Set the environment variable 'MOTHERDUCK_TOKEN'."
+                    )
+                conn = duckdb.connect(db_conn_string)
+                console.log(
+                    f"Setting database {database_name}"
+                )
+                conn.execute(f"USE {database_name}")
+            else:
+                console.log("[Red] Invalid destination. Only 'md' is currently configured.")
+            return conn    
+
     @staticmethod
     def insert_into_duckdb(base_df: pl.DataFrame | pl.LazyFrame, table_name: str, db: str):
         if isinstance(base_df,pl.LazyFrame):
