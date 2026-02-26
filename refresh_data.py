@@ -102,7 +102,7 @@ class Refresh():
         df1 = self._subset_existing_data(existing_records)
         df2 = self._subset_existing_data(self.lf)
         mismached_records = self._find_mismatches(df1,df2)
-        ids_to_update = mismached_records.select("id").collect().to_series().to_list()
+        ids_to_update = mismached_records.select(pl.col("id").cast(str)).collect().to_series().to_list()
         updated_records = self.lf.join(mismached_records.select("id","embeddings"),
                                        on='id',how='inner')\
                                         .drop('is_in_post_campaign_pledging_phase')
@@ -132,10 +132,10 @@ class Refresh():
             pl.LazyFrame: Scrape records without new campaign IDs.
         """
         new_records = pl.col("id").is_in(self.ids_to_add)
-        df = df.filter(~new_records).sort('id')
+        df = df.filter(~new_records).sort('id').fill_null(0)
         return df
     
-    def _find_mismatches(old_data: pl.LazyFrame,new_data: pl.LazyFrame) -> pl.LazyFrame:
+    def _find_mismatches(self,old_data: pl.LazyFrame,new_data: pl.LazyFrame) -> pl.LazyFrame:
         """Finds the records whose information has changed in current scrape
         compared to existing data.
 
@@ -146,7 +146,10 @@ class Refresh():
         Returns:
             pl.LazyFrame: Records in new data that don't match old data
         """
-        return new_data.join(old_data, on=['id','goal','percent_funded','usd_pledged','embeddings'],
+        old_data = old_data.select(['id','goal','percent_funded','usd_pledged','embeddings'])
+        new_data = new_data.select(['id','goal','percent_funded','usd_pledged'])
+
+        return new_data.join(old_data, on=['id','goal','percent_funded','usd_pledged'],
                                      how='anti')
 
     def _delete_outdated_records(self,ids: list[int]):
@@ -156,7 +159,7 @@ class Refresh():
             ids (list[int]): Campaign IDs to delete
         """
         self.db_conn.execute(f"delete from {ref.ks_table} where id in ({','.join(ids)})")
-        self.console("Purged outdated records from database.")
+        self.console.log("Purged outdated records from database.")
 
     def run(self):
         self._pull_existing_ks_ids()
@@ -177,5 +180,5 @@ class Refresh():
             del self.embeddings_df, self.new_data
             self._update_exiting_records()
             del self.lf
-            self.log("[green] Succesfully processed new scrape")
+            self.console.log("[green] Succesfully processed new scrape")
         self.console.log("[green] Full Refresh completed")
