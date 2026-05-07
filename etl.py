@@ -11,7 +11,8 @@ class KS_Records():
 
     # Columns to drop
     cols_to_drop = ['location','photo','category','profile',
-                    'urls','creator','video','table_id',
+                    'urls','creator',#'video',
+                    'table_id',
                     'robot_id','country_displayable_name',"currency_trailing_code",
                     "currency_symbol","source_url"
                     ]
@@ -37,7 +38,7 @@ class KS_Records():
                     'usd_exchange_rate',
                     'is_launched',
                     'id',
-                    'is_in_post_campaign_pledging_phase',
+                    #'is_in_post_campaign_pledging_phase',
                     'deadline',
                     'country',
                     'disable_communication',
@@ -82,7 +83,8 @@ class KS_Records():
                     'creator_is_email_verified',
                     'creator_has_admin_message_badge',
                     'creator_backing_action_count',
-                    'video_status']
+                    'video_status'
+                    ]
     
     def __init__(self,file: str, batch_size: int=10_000,output_db_table: str=None):
         """Initializes class to perform ETL process on a Kickstarter archive file.
@@ -132,7 +134,7 @@ class KS_Records():
             pl.col("creator").struct.field("backing_action_count").alias("creator_backing_action_count").cast(pl.Int32),
             pl.col("video").struct.field("status").alias("video_status"),
             *self.date_change_expressions
-            ).drop(self.cols_to_drop).sort('percent_funded').unique(subset=['id'],keep='last').select(self.column_order)
+            ).drop(self.cols_to_drop).sort('usd_pledged').unique(subset=['id'],keep='last').select(self.column_order)
 
 
     def create_date_changes(self)-> list:
