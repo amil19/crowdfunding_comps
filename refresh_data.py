@@ -92,7 +92,7 @@ class Refresh():
         embeddings = Embeddings(self.new_data,'id',['name','blurb'])
         embeddings.create_documents()
         embeddings.transform()
-        self.embeddings_df = embeddings.df.drop(['cols_to_embed', 'is_in_post_campaign_pledging_phase'])
+        self.embeddings_df = embeddings.df.drop(['cols_to_embed', 'is_in_post_campaign_pledging_phase'],strict=False)
         self.console.log("Created embeddings for new data")
     
     def _update_exiting_records(self):
@@ -105,7 +105,8 @@ class Refresh():
         ids_to_update = mismached_records.select(pl.col("id").cast(str)).collect().to_series().to_list()
         updated_records = self.lf.join(mismached_records.select("id","embeddings"),
                                        on='id',how='inner')\
-                                        .drop('is_in_post_campaign_pledging_phase')
+                                        .drop('is_in_post_campaign_pledging_phase',strict=False)
+        self.console.print(updated_records.head().collect())
         self._delete_outdated_records(ids_to_update)
         ETL.KS_Records.insert_into_duckdb(
             base_df=updated_records,
@@ -148,9 +149,12 @@ class Refresh():
         """
         old_data = old_data.select(['id','goal','percent_funded','usd_pledged','embeddings'])
         new_data = new_data.select(['id','goal','percent_funded','usd_pledged'])
+        mismatches = new_data.join(old_data, 
+                                   on=['id','goal','percent_funded','usd_pledged'],
+                                   how='anti')
+        mismatches = mismatches.join(old_data.select("id",'embeddings'),on='id',how='inner')
 
-        return new_data.join(old_data, on=['id','goal','percent_funded','usd_pledged'],
-                                     how='anti')
+        return mismatches
 
     def _delete_outdated_records(self,ids: list[int]):
         """Purges outdated records from database.
@@ -177,8 +181,9 @@ class Refresh():
                 table_name=ref.ks_table,
                 db=os.environ.get('DUCKDB')
                 )
+            self.console.log("[green] Successfully added new records.")
             del self.embeddings_df, self.new_data
             self._update_exiting_records()
             del self.lf
-            self.console.log("[green] Succesfully processed new scrape")
+            self.console.log("[green] Successfully processed new scrape")
         self.console.log("[green] Full Refresh completed")

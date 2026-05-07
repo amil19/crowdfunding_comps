@@ -26,7 +26,7 @@ class KS_Records():
                     "static_usd_rate": pl.Float32,
                     "usd_exchange_rate": pl.Float32,
                     "fx_rate": pl.Float32,
-                    #"percent_funded": pl.Float32,
+                    "percent_funded": pl.Float32,
                     "backers_count": pl.Int32,
                     "converted_pledged_amount": pl.Int32,                
                     }
@@ -34,9 +34,9 @@ class KS_Records():
     column_order = ['run_id',
                     'file',
                     'goal',
-#                    'is_liked',
+                    'is_liked',
                     'usd_exchange_rate',
-#                    'is_launched',
+                    'is_launched',
                     'id',
                     #'is_in_post_campaign_pledging_phase',
                     'deadline',
@@ -47,11 +47,11 @@ class KS_Records():
                     'fx_rate',
                     'slug',
                     'spotlight',
-                    #'percent_funded',
+                    'percent_funded',
                     'created_at',
                     'state_changed_at',
                     'current_currency',
-#                    'prelaunch_activated',
+                    'prelaunch_activated',
                     'static_usd_rate',
                     'usd_pledged',
                     'launched_at',
@@ -60,7 +60,7 @@ class KS_Records():
                     'is_starrable',
                     'backers_count',
                     'usd_type',
-#                    'is_disliked',
+                    'is_disliked',
                     'currency',
                     'converted_pledged_amount',
                     'pledged',
@@ -81,9 +81,9 @@ class KS_Records():
                     'creator_name',
                     'creator_is_registered',
                     'creator_is_email_verified',
-                    #'creator_has_admin_message_badge',
+                    'creator_has_admin_message_badge',
                     'creator_backing_action_count',
-                    #'video_status'
+                    'video_status'
                     ]
     
     def __init__(self,file: str, batch_size: int=10_000,output_db_table: str=None):
@@ -130,9 +130,9 @@ class KS_Records():
             pl.col("creator").struct.field("name").alias('creator_name'),
             pl.col("creator").struct.field("is_registered").alias("creator_is_registered"),
             pl.col("creator").struct.field("is_email_verified").alias("creator_is_email_verified"),
-            #pl.col("creator").struct.field("has_admin_message_badge").alias("creator_has_admin_message_badge"),
+            pl.col("creator").struct.field("has_admin_message_badge").alias("creator_has_admin_message_badge"),
             pl.col("creator").struct.field("backing_action_count").alias("creator_backing_action_count").cast(pl.Int32),
-            #pl.col("video").struct.field("status").alias("video_status"),
+            pl.col("video").struct.field("status").alias("video_status"),
             *self.date_change_expressions
             ).drop(self.cols_to_drop).sort('usd_pledged').unique(subset=['id'],keep='last').select(self.column_order)
 
