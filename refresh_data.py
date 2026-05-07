@@ -187,3 +187,8 @@ class Refresh():
             del self.lf
             self.console.log("[green] Successfully processed new scrape")
         self.console.log("[green] Full Refresh completed")
+
+if __name__ == "__main__":
+    n = int(input("Enter the number of scrapes you want to process:"))
+    refresh = Refresh(n=n)
+    refresh.run()
