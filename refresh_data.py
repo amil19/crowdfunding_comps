@@ -101,18 +101,39 @@ class Refresh():
         existing_records = self._load_existing_records()
         df1 = self._subset_existing_data(existing_records)
         df2 = self._subset_existing_data(self.lf)
-        mismached_records = self._find_mismatches(df1,df2)
-        ids_to_update = mismached_records.select(pl.col("id").cast(str)).collect().to_series().to_list()
-        updated_records = self.lf.join(mismached_records.select("id","embeddings"),
+        mismatched_records = self._find_mismatches(df1,df2)
+        ids_to_update = mismatched_records.select(pl.col("id").cast(str)).collect().to_series().to_list()
+        updated_records = self.lf.join(mismatched_records.select("id","embeddings"),
                                        on='id',how='inner')\
                                         .drop('is_in_post_campaign_pledging_phase',strict=False)
-        self.console.print(updated_records.head().collect())
-        self._delete_outdated_records(ids_to_update)
-        ETL.KS_Records.insert_into_duckdb(
-            base_df=updated_records,
-            table_name=ref.ks_table,
-            db=os.environ.get('DUCKDB')
-            )
+        self.console.print("Testing updated records dataframe before purging original entries.")
+        try:
+            updated_records.head().collect()
+            self.console.print("Updated records are ready! Proceeding with purge.")
+            self._delete_outdated_records(ids_to_update)
+            ETL.KS_Records.insert_into_duckdb(
+                base_df=updated_records,
+                table_name=ref.ks_table,
+                db=os.environ.get('DUCKDB')
+                )
+        except Exception as e:
+            self.console.log("[red] Unable to process updated records. See self.error for error.")
+            self.error = e
+            self.updated_record_assets = {}
+            self.updated_record_assets['existing_records'] = existing_records
+            self.updated_record_assets['df1'] = df1
+            self.updated_record_assets['df2'] = df2
+            self.updated_record_assets['mismatched_records'] = mismatched_records
+            self.updated_record_assets['ids_to_update'] = ids_to_update
+            self.updated_record_assets['updated_records'] = updated_records
+            self.console.log("""[yellow] All assets needed for updated 
+                               record processing have been cached in 
+                               **self.updated_record_assets (dict).**""")
+            self.console.log("""Remaining steps are:\n 
+                             1) Collecting updated records\n 
+                             2) Deleting outdated records from database \n
+                             3) Inserting new records into database""")
+            raise
 
     def _load_existing_records(self) -> pl.LazyFrame:
         """Loads existing database records. Used to check for changes.
