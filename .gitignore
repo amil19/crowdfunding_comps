@@ -6,4 +6,7 @@
 .env
 .streamlit
 
-__pycache__/models/
+__pycache__/
+models/
+KS Dailies/
+.venv
