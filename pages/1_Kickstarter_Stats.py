@@ -1,12 +1,10 @@
 import streamlit as st
 import app_reference as ref
 from stats_results import Results
-# from sim_search import SimilaritySearch
 import duckdb
 from rich.console import Console
 import polars as pl
 import altair as alt
-#import datetime
 
 st.set_page_config(layout="wide")
 
@@ -131,6 +129,7 @@ st.write("""
 ---
 """)
 st.subheader("View Top Campaigns by Month")
+st.write("Based on launched campaigns that ended in the selected month(s).")
 
 @st.fragment
 def load_dates():
@@ -161,4 +160,10 @@ if dates is not None:
             pl.len().alias("campaigns_completed")
             ).sort("total_funds_raised",descending=True)\
                 .with_row_index('rank',offset=1).head(100)
+    st.write("""
+    ---
+    """)
+    st.subheader("View Top Creators by Month")
+    st.write("Based on launched campaigns that ended in the selected month(s).")
+
     st.dataframe(monthly_creator_stats)
