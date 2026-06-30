@@ -126,3 +126,39 @@ if creator_name:
     column_config = results.column_configs,
     hide_index = True,
     row_height=100)
+
+st.write("""
+---
+""")
+st.subheader("View Top Campaigns by Month")
+
+@st.fragment
+def load_dates():
+    deadline_dates = st.session_state['lf'].select(pl.col("deadline").dt.month_end().cast(pl.Date)).unique().sort('deadline',descending=True).collect()['deadline'].to_list()
+    return deadline_dates
+
+date_options = load_dates()
+
+dates = st.multiselect('Select Reporting Months',options=date_options)
+
+@st.fragment
+def filter_dates(dates) -> pl.DataFrame:
+    date_df = st.session_state['lf'].with_columns(pl.col("deadline").dt.month_end().cast(pl.Date))\
+        .filter(
+            (pl.col('deadline').is_in(dates)) & 
+            (pl.col("Launched")==1)
+            )\
+            .sort("usd_pledged",descending=True).collect()
+    return date_df
+
+if dates is not None:
+    top_campaign_months = filter_dates(dates)
+    st.dataframe(top_campaign_months.drop('id').with_row_index('rank',offset=1).head(100))
+    monthly_creator_stats = top_campaign_months\
+        .group_by('creator_name').agg(
+            pl.sum("usd_pledged").alias("total_funds_raised"),
+            pl.sum("backers_count").alias("total_backers"),
+            pl.len().alias("campaigns_completed")
+            ).sort("total_funds_raised",descending=True)\
+                .with_row_index('rank',offset=1).head(100)
+    st.dataframe(monthly_creator_stats)
