@@ -119,9 +119,8 @@ class SimilaritySearch():
     def load_encoding_model(self):
         """Loads SBERT model used to create embeddings.
         """
-        MODEL_LOAD_PATH = './models/kickstarter-sbert-model'
 
-        self.original_model = SentenceTransformer(MODEL_LOAD_PATH)
+        self.encoding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
     def create_query_vector(self):
         """Creates the vector for querying.
@@ -130,7 +129,7 @@ class SimilaritySearch():
         self.embed_inputs.create_documents()
         self.query_df_updated = self.embed_inputs.transform()
         self.load_encoding_model()
-        self.query_embeddings = self.original_model.encode(self.embed_inputs.documents, convert_to_numpy=True).astype(np.float32)
+        self.query_embeddings = self.encoding_model.encode(self.embed_inputs.documents, convert_to_numpy=True).astype(np.float32)
         self.query_df_updated = self.query_df_updated.drop(['name','blurb','cols_to_embed','embeddings']).to_pandas()
         self.query_df_updated = self.query_df_updated.set_index('id')
 
